@@ -1,5 +1,5 @@
 [package]
-name = "decision_macro"
+name = "decision_tree_builder"
 version = "0.0.1"
 authors = ["Jakub Zawadzki <kuba.zaw@gmail.com>"]
 edition = "2021"
@@ -13,6 +13,6 @@ syn = "1.0.107"
 quote = "1.0.23"
 proc-macro2 = "1.0.49"
 prettyplease = "0.1.23"
-decision_impl = { path = "../impl" }
+decision_tree_builder_helper = { path = "../impl" }
 either = "1.8.1"
 

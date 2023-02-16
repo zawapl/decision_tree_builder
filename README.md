@@ -1,11 +1,10 @@
-use std::fs;
-use std::fs::File;
-use std::io::{Result, Write};
+# decision_tree_builder
 
-use decision_tree_builder::TreeBuilderSupport;
-use decision_tree_builder_helper::TreeBuilder;
-use proc_macro2::TokenStream;
+The package introduces a `TreeBuilderSupport` macro that allows the marked struct to be used by the `TreeBuilder`.
+This allows for the builder to generate a token stream containing implementation of a decision tree created from the provided data using the C4.5 algorithm.
 
+Example use (taken from [generate_decision_tree](crates/macro/examples/generate_decision_tree.rs) example):
+```rust
 #[derive(TreeBuilderSupport)]
 #[TreeBuilderResultType(bool)]
 pub struct TestData {
@@ -27,3 +26,15 @@ fn main() {
     let formatted = prettyplease::unparse(&generated_ast);
     println!("{}", formatted);
 }
+```
+
+Running above will output
+```rust
+pub fn decide(val: &generate_decision_tree::TestData) -> bool {
+    if val.a < 1 {
+        if val.b < 1 { false } else { true }
+    } else {
+        if val.b < 1 { true } else { false }
+    }
+}
+```

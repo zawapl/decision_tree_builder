@@ -1,5 +1,5 @@
 [package]
-name = "decision_impl"
+name = "decision_tree_builder_helper"
 version = "0.0.1"
 authors = ["Jakub Zawadzki <kuba.zaw@gmail.com>"]
 edition = "2021"

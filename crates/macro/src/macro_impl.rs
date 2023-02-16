@@ -92,7 +92,7 @@ pub fn impl_hello_macro(ast: &syn::DeriveInput) -> TokenStream {
 
         let gen = quote! {
             pub mod tree_builder_support {
-                use decision_impl::*;
+                use decision_tree_builder_helper::*;
                 use super::#struct_name;
                 use std::collections::HashMap;
                 use proc_macro2::{Ident, Literal, Span, TokenStream};

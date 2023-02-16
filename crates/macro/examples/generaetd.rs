@@ -2,7 +2,7 @@ use std::fs;
 use std::fs::File;
 use std::io::{Result, Write};
 
-use decision_impl::TreeBuilder;
+use decision_tree_builder_helper::TreeBuilder;
 use proc_macro2::TokenStream;
 
 pub struct TestData {

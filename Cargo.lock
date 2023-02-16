@@ -3,22 +3,22 @@
 version = 3
 
 [[package]]
-name = "decision_impl"
+name = "decision_tree_builder"
 version = "0.0.1"
 dependencies = [
+ "decision_tree_builder_helper",
  "either",
+ "prettyplease",
  "proc-macro2",
  "quote",
  "syn",
 ]
 
 [[package]]
-name = "decision_macro"
+name = "decision_tree_builder_helper"
 version = "0.0.1"
 dependencies = [
- "decision_impl",
  "either",
- "prettyplease",
  "proc-macro2",
  "quote",
  "syn",
