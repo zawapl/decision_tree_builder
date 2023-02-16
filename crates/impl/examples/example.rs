@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 
-use decision_impl::{split_data, Decision, GainCalculator, GainRatioCalculator, TreeBuilder, TreeBuilderSupport};
+use decision_impl::{utils, GainCalculator, GainRatioCalculator, TreeBuilder, TreeBuilderSupport};
 use either::Either;
 use proc_macro2::{Ident, Literal, Span, TokenStream};
-use quote::{format_ident, quote};
 
 fn main() {
     let mut data = [
@@ -59,12 +58,12 @@ impl GainCalculator<TestData, bool> for TestDataGainCalculator {
         let gain_ratio_b = entropy_calculator.calculate_gain_ratio_ord(&self.b);
 
         if gain_ratio_b > gain_ratio_a {
-            let condition = Decision::to_tokens_ord(gain_ratio_b.1, Ident::new("b", Span::call_site()));
-            let split = split_data(data, |t| t.0.b < gain_ratio_b.1);
+            let condition = utils::to_tokens_ord(gain_ratio_b.1, Ident::new("b", Span::call_site()));
+            let split = utils::split_data(data, |t| t.0.b < gain_ratio_b.1);
             return Either::Right((condition, split));
         } else if gain_ratio_a.0 > 0.0 {
-            let condition = Decision::to_tokens_ord(gain_ratio_a.1, Ident::new("a", Span::call_site()));
-            let split = split_data(data, |t| t.0.a < gain_ratio_a.1);
+            let condition = utils::to_tokens_ord(gain_ratio_a.1, Ident::new("a", Span::call_site()));
+            let split = utils::split_data(data, |t| t.0.a < gain_ratio_a.1);
             return Either::Right((condition, split));
         } else {
             let most_common = *self.results.iter().max_by(|a, b| (a.1).cmp(b.1)).map(|(k, _v)| k).unwrap();

@@ -1,6 +1,10 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 
+use utils::h;
+
+use crate::utils;
+
 pub struct GainRatioCalculator {
     total: usize,
     entropy: f64,
@@ -95,7 +99,7 @@ impl GainRatioCalculator {
         let mut best_test_value = vals[0];
         let mut best_branch_size = usize::MAX;
 
-        for test_value in &vals[1..] {
+        for test_value in &vals[0..] {
             let mut mapped_results = HashMap::new();
 
             for entry in data {
@@ -126,9 +130,4 @@ impl GainRatioCalculator {
 
         return (best_gain_ratio, best_test_value, best_branch_size);
     }
-}
-
-fn h(count: usize, total: usize) -> f64 {
-    let p = count as f64 / total as f64;
-    return -p * p.log2();
 }

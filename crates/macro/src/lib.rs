@@ -1,18 +1,13 @@
+extern crate proc_macro;
+
+use proc_macro::TokenStream;
+
+use crate::write_to_file::write_to_file;
+
+mod field_type;
 mod macro_impl;
 mod struct_field;
 mod write_to_file;
-
-extern crate proc_macro;
-
-use std::fs::File;
-use std::io::Write;
-use std::{env, fs};
-
-use proc_macro::TokenStream;
-use quote::quote;
-use syn::Data::Struct;
-
-use crate::write_to_file::write_to_file;
 
 #[proc_macro_derive(TreeBuilderSupport, attributes(TreeBuilderResultType))]
 pub fn my_macro_here_derive(input: TokenStream) -> TokenStream {
