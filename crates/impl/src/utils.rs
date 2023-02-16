@@ -1,5 +1,3 @@
-use std::cmp::Ordering;
-
 pub fn split_data<T, F>(data: &mut [T], predicate: F) -> usize
 where F: Fn(&T) -> bool {
     let mut a = 0;

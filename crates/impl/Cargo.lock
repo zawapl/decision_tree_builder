@@ -3,22 +3,10 @@
 version = 3
 
 [[package]]
-name = "decision_impl"
+name = "decision"
 version = "0.0.1"
 dependencies = [
  "either",
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "decision_macro"
-version = "0.0.1"
-dependencies = [
- "decision_impl",
- "either",
- "prettyplease",
  "proc-macro2",
  "quote",
  "syn",
@@ -29,16 +17,6 @@ name = "either"
 version = "1.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fcaabb2fef8c910e7f4c7ce9f67a1283a1715879a7c230ca9d6d1ae31f16d91"
-
-[[package]]
-name = "prettyplease"
-version = "0.1.23"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e97e3215779627f01ee256d2fad52f3d95e8e1c11e9fc6fd08f7cd455d5d5c78"
-dependencies = [
- "proc-macro2",
- "syn",
-]
 
 [[package]]
 name = "proc-macro2"
