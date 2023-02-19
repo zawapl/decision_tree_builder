@@ -1,5 +1,5 @@
 [package]
-name = "decision_tree_builder_helper"
+name = "decision_tree_builder_impl"
 version = "0.0.1"
 authors = ["Jakub Zawadzki <kuba.zaw@gmail.com>"]
 edition = "2021"
@@ -11,3 +11,5 @@ quote = "1.0.23"
 proc-macro2 = "1.0.49"
 either = "1.8.1"
 
+[dev-dependencies]
+prettyplease = "0.1.23"

@@ -28,13 +28,16 @@ pub fn to_tokens_ord<T: ToTokens>(v: T, ident: Ident) -> TokenStream {
 
 
 pub(crate) fn h(count: usize, total: usize) -> f64 {
+    if count == 0 {
+        return 0.0;
+    }
     let p = count as f64 / total as f64;
     return -p * p.log2();
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::split_data;
+    use super::split_data;
 
     #[test]
     fn middle() {

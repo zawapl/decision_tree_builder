@@ -1,13 +1,7 @@
-use std::fs;
-use std::fs::File;
-use std::io::{Result, Write};
-
 use decision_tree_builder::TreeBuilderSupport;
-use decision_tree_builder_helper::TreeBuilder;
-use proc_macro2::TokenStream;
+use decision_tree_builder_impl::TreeBuilder;
 
 #[derive(TreeBuilderSupport)]
-#[TreeBuilderResultType(bool)]
 pub struct TestData {
     a: usize,
     b: usize,

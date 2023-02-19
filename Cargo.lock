@@ -6,7 +6,7 @@ version = 3
 name = "decision_tree_builder"
 version = "0.0.1"
 dependencies = [
- "decision_tree_builder_helper",
+ "decision_tree_builder_impl",
  "either",
  "prettyplease",
  "proc-macro2",
@@ -15,10 +15,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "decision_tree_builder_helper"
+name = "decision_tree_builder_impl"
 version = "0.0.1"
 dependencies = [
  "either",
+ "prettyplease",
  "proc-macro2",
  "quote",
  "syn",

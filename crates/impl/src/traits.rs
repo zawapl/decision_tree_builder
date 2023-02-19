@@ -1,10 +1,9 @@
 use either::Either;
 use proc_macro2::TokenStream;
-use quote::ToTokens;
 
-pub trait TreeBuilderSupport: Sized {
-    type ResultType: ToTokens;
-    type GainCalculator: GainCalculator<Self, Self::ResultType>;
+
+pub trait TreeBuilderSupport<R>: Sized {
+    type GainCalculator<T>: GainCalculator<Self, R>;
 }
 
 pub trait GainCalculator<T, R> {

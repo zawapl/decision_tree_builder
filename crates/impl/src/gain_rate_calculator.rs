@@ -92,42 +92,42 @@ impl GainRatioCalculator {
         return (best_gain_ratio, best_threshold, best_branch_size);
     }
 
-    pub fn calculate_gain_ratio_eq<A: PartialEq + Copy + Hash, T: Hash + Eq>(&self, data: &HashMap<A, HashMap<T, usize>>) -> (f64, A, usize) {
-        let vals = data.keys().copied().collect::<Vec<A>>();
-
-        let mut best_gain_ratio = 0.0;
-        let mut best_test_value = vals[0];
-        let mut best_branch_size = usize::MAX;
-
-        for test_value in &vals[0..] {
-            let mut mapped_results = HashMap::new();
-
-            for entry in data {
-                let mapped_key = entry.0 == test_value;
-                if !mapped_results.contains_key(&mapped_key) {
-                    mapped_results.insert(mapped_key, HashMap::new());
-                }
-
-                let sub_map = mapped_results.get_mut(&mapped_key).unwrap();
-
-                for outcome in entry.1 {
-                    if !sub_map.contains_key(outcome.0) {
-                        sub_map.insert(outcome.0, *outcome.1);
-                    } else {
-                        sub_map.insert(outcome.0, sub_map[&outcome.0] + outcome.1);
-                    }
-                }
-            }
-
-            let (gain_ratio, _, branch_size) = self.calculate_gain_ratio_bool(&mapped_results);
-
-            if (gain_ratio > best_gain_ratio) || (gain_ratio == best_gain_ratio && branch_size < best_branch_size) {
-                best_gain_ratio = gain_ratio;
-                best_test_value = *test_value;
-                best_branch_size = branch_size;
-            }
-        }
-
-        return (best_gain_ratio, best_test_value, best_branch_size);
-    }
+    // pub fn calculate_gain_ratio_eq<A: PartialEq + Copy + Hash, T: Hash + Eq>(&self, data: &HashMap<A, HashMap<T, usize>>) -> (f64, A, usize) {
+    //     let vals = data.keys().copied().collect::<Vec<A>>();
+    //
+    //     let mut best_gain_ratio = 0.0;
+    //     let mut best_test_value = vals[0];
+    //     let mut best_branch_size = usize::MAX;
+    //
+    //     for test_value in &vals[0..] {
+    //         let mut mapped_results = HashMap::new();
+    //
+    //         for entry in data {
+    //             let mapped_key = entry.0 == test_value;
+    //             if !mapped_results.contains_key(&mapped_key) {
+    //                 mapped_results.insert(mapped_key, HashMap::new());
+    //             }
+    //
+    //             let sub_map = mapped_results.get_mut(&mapped_key).unwrap();
+    //
+    //             for outcome in entry.1 {
+    //                 if !sub_map.contains_key(outcome.0) {
+    //                     sub_map.insert(outcome.0, *outcome.1);
+    //                 } else {
+    //                     sub_map.insert(outcome.0, sub_map[&outcome.0] + outcome.1);
+    //                 }
+    //             }
+    //         }
+    //
+    //         let (gain_ratio, _, branch_size) = self.calculate_gain_ratio_bool(&mapped_results);
+    //
+    //         if (gain_ratio > best_gain_ratio) || (gain_ratio == best_gain_ratio && branch_size < best_branch_size) {
+    //             best_gain_ratio = gain_ratio;
+    //             best_test_value = *test_value;
+    //             best_branch_size = branch_size;
+    //         }
+    //     }
+    //
+    //     return (best_gain_ratio, best_test_value, best_branch_size);
+    // }
 }
