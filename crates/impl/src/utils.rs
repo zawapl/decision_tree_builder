@@ -1,7 +1,4 @@
-use proc_macro2::{Ident, TokenStream};
-use quote::{quote, ToTokens};
-
-pub fn split_data<T, F>(data: &mut [T], predicate: F) -> usize
+pub(crate) fn split_data<T, F>(data: &mut [T], predicate: F) -> usize
 where F: Fn(&T) -> bool {
     let mut a = 0;
     let mut b = data.len() - 1;
@@ -18,21 +15,14 @@ where F: Fn(&T) -> bool {
     return a;
 }
 
-pub fn to_tokens_eq<T: ToTokens>(v: T, ident: Ident) -> TokenStream {
-    return quote!(val.#ident == #v);
-}
-
-pub fn to_tokens_ord<T: ToTokens>(v: T, ident: Ident) -> TokenStream {
-    return quote!(val.#ident < #v);
-}
-
-
 pub(crate) fn h(count: usize, total: usize) -> f64 {
     if count == 0 {
         return 0.0;
     }
     let p = count as f64 / total as f64;
-    return -p * p.log2();
+    let result = -p * p.log2();
+    debug_assert!(!result.is_nan());
+    return result;
 }
 
 #[cfg(test)]

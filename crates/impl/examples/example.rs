@@ -1,75 +1,141 @@
-use std::collections::HashMap;
-use std::default::Default;
 use std::hash::Hash;
 
-use decision_tree_builder_impl::*;
-use either::Either;
-use proc_macro2::{Ident, Literal, Span, TokenStream};
+use decision_tree_builder_impl::{BranchBuilder, Decision, TreeBuilder};
+use proc_macro2::TokenStream;
+use quote::{quote, ToTokens};
+
+struct TestStructData {
+    a: Inner,
+    b: Inner,
+}
+
+struct Inner {
+    a: bool,
+    b: f32,
+}
+
+impl BranchBuilder for TestStructData {
+    type Decision = __TestStructDataDecision;
+
+    #[allow(unused_assignments)]
+    fn find_best_decision<R: ToTokens + Copy + Eq + Hash, F, D>(entropy: f64, data: &mut [(D, R)], extract: F) -> Self::Decision
+    where F: Fn(&D) -> &Self {
+        let other = BranchBuilder::find_best_decision(entropy, data, |d| &extract(d).a);
+        let mut best_gain_ratio = other.gain_ratio();
+        let mut best_branch_width = other.max_branch_width();
+        let mut best_decision = __TestStructDataDecision::A(other);
+
+        let other = BranchBuilder::find_best_decision(entropy, data, |d| &extract(d).b);
+        if (best_gain_ratio < other.gain_ratio()) || (best_gain_ratio == other.gain_ratio() && best_branch_width > other.max_branch_width()) {
+            best_gain_ratio = other.gain_ratio();
+            best_branch_width = other.max_branch_width();
+            best_decision = __TestStructDataDecision::B(other);
+        }
+
+        return best_decision;
+    }
+
+    fn split_data<F, D, R>(data: &mut [(D, R)], extract: F, decision: &Self::Decision) -> usize
+    where F: Fn(&D) -> &Self {
+        return match decision {
+            __TestStructDataDecision::A(a) => BranchBuilder::split_data(data, |d| &extract(d).a, a),
+            __TestStructDataDecision::B(b) => BranchBuilder::split_data(data, |d| &extract(d).b, b),
+        };
+    }
+}
+
+enum __TestStructDataDecision {
+    A(<Inner as BranchBuilder>::Decision),
+    B(<Inner as BranchBuilder>::Decision),
+}
+
+impl Decision for __TestStructDataDecision {
+    fn gain_ratio(&self) -> f64 {
+        return match self {
+            __TestStructDataDecision::A(a) => a.gain_ratio(),
+            __TestStructDataDecision::B(b) => b.gain_ratio(),
+        };
+    }
+
+    fn max_branch_width(&self) -> usize {
+        return match self {
+            __TestStructDataDecision::A(a) => a.max_branch_width(),
+            __TestStructDataDecision::B(b) => b.max_branch_width(),
+        };
+    }
+
+    fn to_condition(&self, var: TokenStream) -> TokenStream {
+        return match self {
+            __TestStructDataDecision::A(a) => a.to_condition(quote!(#var.a)),
+            __TestStructDataDecision::B(b) => b.to_condition(quote!(#var.b)),
+        };
+    }
+}
+
+impl BranchBuilder for Inner {
+    type Decision = __InnerDecision;
+
+    #[allow(unused_assignments)]
+    fn find_best_decision<R: ToTokens + Copy + Eq + Hash, F, D>(entropy: f64, data: &mut [(D, R)], extract: F) -> Self::Decision
+    where F: Fn(&D) -> &Self {
+        let other = BranchBuilder::find_best_decision(entropy, data, |d| &extract(d).a);
+        let mut best_gain_ratio = other.gain_ratio();
+        let mut best_branch_width = other.max_branch_width();
+        let mut best_decision = __InnerDecision::A(other);
+
+        let other = BranchBuilder::find_best_decision(entropy, data, |d| &extract(d).b);
+        if (best_gain_ratio < other.gain_ratio()) || (best_gain_ratio == other.gain_ratio() && best_branch_width > other.max_branch_width()) {
+            best_gain_ratio = other.gain_ratio();
+            best_branch_width = other.max_branch_width();
+            best_decision = __InnerDecision::B(other);
+        }
+
+        return best_decision;
+    }
+
+    fn split_data<F, D, R>(data: &mut [(D, R)], extract: F, decision: &Self::Decision) -> usize
+    where F: Fn(&D) -> &Self {
+        return match decision {
+            __InnerDecision::A(a) => BranchBuilder::split_data(data, |d| &extract(d).a, a),
+            __InnerDecision::B(b) => BranchBuilder::split_data(data, |d| &extract(d).b, b),
+        };
+    }
+}
+
+enum __InnerDecision {
+    A(<bool as BranchBuilder>::Decision),
+    B(<f32 as BranchBuilder>::Decision),
+}
+
+impl Decision for __InnerDecision {
+    fn gain_ratio(&self) -> f64 {
+        return match self {
+            __InnerDecision::A(a) => a.gain_ratio(),
+            __InnerDecision::B(b) => b.gain_ratio(),
+        };
+    }
+
+    fn max_branch_width(&self) -> usize {
+        return match self {
+            __InnerDecision::A(a) => a.max_branch_width(),
+            __InnerDecision::B(b) => b.max_branch_width(),
+        };
+    }
+
+    fn to_condition(&self, var: TokenStream) -> TokenStream {
+        return match self {
+            __InnerDecision::A(a) => a.to_condition(quote!(#var.a)),
+            __InnerDecision::B(b) => b.to_condition(quote!(#var.b)),
+        };
+    }
+}
 
 fn main() {
     let mut data = [
-        (TestData { a: 0, b: 0, c: false, d: false }, false),
-        (TestData { a: 0, b: 1, c: true, d: true }, true),
-        (TestData { a: 1, b: 0, c: false, d: true }, true),
-        (TestData { a: 1, b: 1, c: true, d: true }, true),
+        (TestStructData { a: Inner { a: true, b: 1.0 }, b: Inner { a: true, b: 2.0 } }, true),
+        (TestStructData { a: Inner { a: true, b: 1.0 }, b: Inner { a: true, b: 1.0 } }, false),
     ];
-    let token_stream = TreeBuilder::default().build(&mut data);
-    let generated_ast = syn::parse2(token_stream).unwrap();
-    let formatted = prettyplease::unparse(&generated_ast);
-    println!("{}", formatted);
-}
-
-#[derive(Default, Debug)]
-struct TestData {
-    a: usize,
-    b: usize,
-    c: bool,
-    d: bool,
-}
-
-impl<R: Copy + Default + Eq + Hash> TreeBuilderSupport<R> for TestData {
-    type GainCalculator<T> = TestDataGainCalculator<R>;
-}
-
-pub struct TestDataGainCalculator<R> {
-    results: HashMap<R, usize>,
-    a: HashMap<usize, HashMap<R, usize>>,
-    b: HashMap<usize, HashMap<R, usize>>,
-}
-
-impl<R: Copy + Eq + Hash> GainCalculator<TestData, R> for TestDataGainCalculator<R> {
-    fn new() -> Self {
-        TestDataGainCalculator { results: HashMap::new(), a: HashMap::new(), b: HashMap::new() }
-    }
-
-    fn add_entry(&mut self, (entry, res): &(TestData, R)) {
-        *self.results.entry(*res).or_insert(0) += 1;
-        *self.a.entry(entry.a).or_insert(HashMap::new()).entry(*res).or_insert(0) += 1;
-        *self.b.entry(entry.b).or_insert(HashMap::new()).entry(*res).or_insert(0) += 1;
-    }
-
-    fn to_node(self, data: &mut [(TestData, R)]) -> Either<R, (TokenStream, usize)> {
-        if self.results.keys().count() == 1 {
-            let value = *self.results.keys().next().unwrap();
-            return Either::Left(value);
-        }
-
-        let entropy_calculator = GainRatioCalculator::from_results(&self.results);
-
-        let gain_ratio_a = entropy_calculator.calculate_gain_ratio_ord(&self.a);
-        let gain_ratio_b = entropy_calculator.calculate_gain_ratio_ord(&self.b);
-
-        if gain_ratio_b > gain_ratio_a {
-            let condition = utils::to_tokens_ord(gain_ratio_b.1, Ident::new("b", Span::call_site()));
-            let split = utils::split_data(data, |t| t.0.b < gain_ratio_b.1);
-            return Either::Right((condition, split));
-        } else if gain_ratio_a.0 > 0.0 {
-            let condition = utils::to_tokens_ord(gain_ratio_a.1, Ident::new("a", Span::call_site()));
-            let split = utils::split_data(data, |t| t.0.a < gain_ratio_a.1);
-            return Either::Right((condition, split));
-        } else {
-            let most_common = *self.results.iter().max_by(|a, b| (a.1).cmp(b.1)).map(|(k, _v)| k).unwrap();
-            return Either::Left(most_common);
-        }
-    }
+    let decision = TreeBuilder::default().build(&mut data).unwrap();
+    let pretty = prettyplease::unparse(&syn::parse_file(decision.to_string().as_str()).unwrap());
+    println!("{pretty}");
 }
