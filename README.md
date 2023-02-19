@@ -33,10 +33,10 @@ fn main() {
 Running above will output
 ```rust
 pub fn decide(val: &generate_decision_tree::TestData) -> bool {
-    return if *val.b < 1 {
-        if *val.a < 1 { false } else { true }
+    return if val.b < 1 {
+        if val.a < 1 { false } else { true }
     } else {
-        if *val.a < 1 { true } else { false }
+        if val.a < 1 { true } else { false }
     };
 }
 ```
