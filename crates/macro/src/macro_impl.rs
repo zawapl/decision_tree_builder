@@ -1,130 +1,107 @@
 use proc_macro::TokenStream;
-use proc_macro2::Ident;
 use quote::{format_ident, quote};
-use syn::Attribute;
 use syn::Data::Struct;
+use syn::__private::TokenStream2;
 
-use crate::field_type::FieldType;
 use crate::struct_field::StructField;
 
 pub fn impl_hello_macro(ast: &syn::DeriveInput) -> TokenStream {
     let struct_name = &ast.ident;
-    let gain_calculator_struct_name = format_ident!("{struct_name}GainCalculator");
+    let decision_enum_name = format_ident!("__{struct_name}Decision");
 
     if let Struct(data_struct) = &ast.data {
         let fields = StructField::from_fields(&data_struct.fields);
 
-        let mut grc_fields = quote!(__results: HashMap<R, usize>);
-        let mut grc_fields_init = quote!(__results: HashMap::new());
-        let mut grc_add_entry = quote!( *self.__results.entry(*res).or_insert(0) += 1; );
-
-        let mut grc_to_node_calculations = quote!(
-            let gain_ratio_calculator = GainRatioCalculator::from_results(&self.__results);
-
-            let mut best_gain = 0.0;
-            let mut best_field = usize::MAX;
-            let mut best_branch_size = usize::MAX;
-        );
-
-        let mut grc_match_clause = quote!(
-            _ => {
-                let most_common = *self.__results.iter().max_by(|a, b| (a.1).cmp(b.1)).map(|(k, _v)| k).unwrap();
-                return Either::Left(most_common);
-            }
-        );
+        let mut find_best_decision = TokenStream2::new();
+        let mut split_data_match = TokenStream2::new();
+        let mut decision_enum_options = TokenStream2::new();
+        let mut decision_enum_to_decision_eval_match = TokenStream2::new();
+        let mut decision_enum_to_condition_match = TokenStream2::new();
 
         for field in fields {
-            let StructField { i, struct_field, named_field, field_type } = field;
-            let field_type_ident = field_type.get_ident();
-            let gain_ratio_calculator_function = field_type.gain_ratio_calculator_function();
+            let named_field = field.named_field;
+            let struct_field = field.struct_field;
+            let field_type = field.field_type;
+            let struct_field_string = struct_field.to_string();
 
-            grc_fields = quote!(
-                #grc_fields,
-                #named_field: HashMap<#field_type_ident, HashMap<R, usize>>
+            find_best_decision = quote!(
+                #find_best_decision
+                #decision_enum_name::#named_field(decision_tree_builder_impl::BranchBuilder::find_best_decision(entropy, data, |d| &extract(d).#struct_field)),
             );
 
-            grc_fields_init = quote!(
-                #grc_fields_init,
-                #named_field: HashMap::new()
+            split_data_match = quote!(
+                #split_data_match
+                #decision_enum_name::#named_field(inner) => decision_tree_builder_impl::BranchBuilder::split_data(data, |d| &extract(d).#struct_field, inner),
             );
 
-            grc_add_entry = quote!(
-                #grc_add_entry
-                *self.#named_field.entry(entry.#struct_field).or_insert(HashMap::new()).entry(*res).or_insert(0) += 1;
+            decision_enum_options = quote!(
+                #decision_enum_options
+                #named_field(<#field_type as decision_tree_builder_impl::BranchBuilder>::Decision),
             );
 
-            grc_to_node_calculations = quote!(
-                #grc_to_node_calculations
-                let #named_field = gain_ratio_calculator.#gain_ratio_calculator_function(&self.#named_field);
+            decision_enum_to_decision_eval_match = quote! (
+                #decision_enum_to_decision_eval_match
+                #decision_enum_name::#named_field(inner) => inner.to_decision_eval(),
+            );
 
-                if (#named_field.0 > best_gain) || (#named_field.0 == best_gain && #named_field.2 < best_branch_size){
-                    best_gain = #named_field.0;
-                    best_field = #i;
-                    best_branch_size = #named_field.2;
+            decision_enum_to_condition_match = quote!(
+                #decision_enum_to_condition_match
+                #decision_enum_name::#named_field(inner) => {
+                    result.append(proc_macro2::Ident::new(#struct_field_string, proc_macro2::Span::call_site()));
+                    inner.to_condition(result)
                 }
             );
-
-            let ident_string = struct_field.to_string();
-            if let FieldType::LiteralOrd(indent) = field_type {
-                let literal_func = format_ident!("{}_unsuffixed", indent);
-                grc_match_clause = quote!(
-                    #i => {
-                        let literal = Literal::#literal_func(#named_field.1);
-                        let condition = utils::to_tokens_ord(literal, Ident::new(#ident_string, Span::call_site()));
-                        let split = utils::split_data(data, |t| t.0.#struct_field < #named_field.1);
-                        return Either::Right((condition, split));
-                    },
-                    #grc_match_clause
-                );
-            } else {
-                grc_match_clause = quote!(
-                    #i => {
-                        let condition = utils::to_tokens_eq(#named_field.1, Ident::new(#ident_string, Span::call_site()));
-                        let split = utils::split_data(data, |t| t.0.#struct_field == #named_field.1);
-                        return Either::Right((condition, split));
-                    },
-                    #grc_match_clause
-                );
-            }
         }
 
 
         let gen = quote! {
-            pub mod tree_builder_support {
-                use decision_tree_builder_impl::*;
-                use super::#struct_name;
-                use std::collections::HashMap;
-                use proc_macro2::{Ident, Literal, Span, TokenStream};
-                use either::Either;
-                use std::hash::Hash;
+            impl decision_tree_builder_impl::BranchBuilder for #struct_name {
+                type Decision = #decision_enum_name;
 
-                impl<R: Copy + Eq + Hash> TreeBuilderSupport<R> for #struct_name {
-                    type GainCalculator<T> = #gain_calculator_struct_name<R>;
+                fn find_best_decision<R: Copy + Eq + std::hash::Hash, F, D>(entropy: f64, data: &mut [(D, R)], extract: F) -> Self::Decision
+                where F: Fn(&D) -> &Self {
+                    use decision_tree_builder_impl::Decision;
+
+                    let decisions= [
+                        #find_best_decision
+                    ];
+
+                    return decisions.into_iter()
+                        .max_by(|a, b| a.to_decision_eval().cmp(b.to_decision_eval()))
+                        .unwrap();
                 }
 
-                pub struct #gain_calculator_struct_name<R>{
-                    #grc_fields
-                }
-
-                impl<R: Copy + Eq + Hash> GainCalculator<#struct_name, R> for #gain_calculator_struct_name<R> {
-
-                    fn new() -> Self {
-                        return #gain_calculator_struct_name{#grc_fields_init};
-                    }
-
-                    fn add_entry(&mut self, (entry, res): &(#struct_name, R)) {
-                        #grc_add_entry
-                    }
-
-                    fn to_node(self, data: &mut [(#struct_name, R)]) -> Either<R, (TokenStream, usize)> {
-                        #grc_to_node_calculations
-                        match best_field {
-                            #grc_match_clause
-                        }
-                    }
-
+                fn split_data<F, D, R>(data: &mut [(D, R)], extract: F, decision: &Self::Decision) -> usize
+                where F: Fn(&D) -> &Self {
+                    return match decision {
+                        #split_data_match
+                    };
                 }
             }
+
+            pub enum #decision_enum_name {
+                #decision_enum_options
+            }
+
+            impl decision_tree_builder_impl::Decision for #decision_enum_name {
+                fn to_decision_eval(&self) -> &decision_tree_builder_impl::DecisionEval {
+                    return match self {
+                        #decision_enum_to_decision_eval_match
+                    };
+                }
+
+                fn to_condition(&self, var: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
+                    use syn::__private::TokenStreamExt;
+
+                    let mut result = proc_macro2::TokenStream::new();
+                    result.append_all(var);
+                    result.append(proc_macro2::Punct::new('.', proc_macro2::Spacing::Alone));
+                    return match self {
+                        #decision_enum_to_condition_match
+                    };
+                }
+            }
+
         };
 
         return gen.into();

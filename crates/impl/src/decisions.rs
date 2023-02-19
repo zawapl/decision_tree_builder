@@ -1,25 +1,21 @@
 use proc_macro2::{Literal, TokenStream};
 use quote::{quote, ToTokens};
 
+use crate::decision_eval::DecisionEval;
+use crate::ToFormattedTokens;
+
 pub trait Decision {
-    fn gain_ratio(&self) -> f64;
-    fn max_branch_width(&self) -> usize;
+    fn to_decision_eval(&self) -> &DecisionEval;
     fn to_condition(&self, var: TokenStream) -> TokenStream;
 }
 
-#[derive(Debug)]
 pub struct BoolDecision {
-    pub(crate) gain_ratio: f64,
-    pub(crate) max_branch_width: usize,
+    pub(crate) decision_eval: DecisionEval,
 }
 
 impl Decision for BoolDecision {
-    fn gain_ratio(&self) -> f64 {
-        return self.gain_ratio;
-    }
-
-    fn max_branch_width(&self) -> usize {
-        return self.max_branch_width;
+    fn to_decision_eval(&self) -> &DecisionEval {
+        return &self.decision_eval;
     }
 
     fn to_condition(&self, var: TokenStream) -> TokenStream {
@@ -27,20 +23,14 @@ impl Decision for BoolDecision {
     }
 }
 
-#[derive(Debug)]
-pub struct EqDecision<'a, T> {
-    pub(crate) gain_ratio: f64,
-    pub(crate) max_branch_width: usize,
-    pub(crate) val: &'a T,
+pub struct EqDecision<T> {
+    pub(crate) decision_eval: DecisionEval,
+    pub(crate) val: T,
 }
 
-impl<'a, T: ToTokens> Decision for EqDecision<'a, T> {
-    fn gain_ratio(&self) -> f64 {
-        return self.gain_ratio;
-    }
-
-    fn max_branch_width(&self) -> usize {
-        return self.max_branch_width;
+impl<T: ToTokens> Decision for EqDecision<T> {
+    fn to_decision_eval(&self) -> &DecisionEval {
+        return &self.decision_eval;
     }
 
     fn to_condition(&self, var: TokenStream) -> TokenStream {
@@ -49,31 +39,22 @@ impl<'a, T: ToTokens> Decision for EqDecision<'a, T> {
     }
 }
 
-
-#[derive(Debug)]
 pub struct OrdDecision<T> {
-    pub(crate) gain_ratio: f64,
-    pub(crate) max_branch_width: usize,
+    pub(crate) decision_eval: DecisionEval,
     pub(crate) threshold: T,
 }
 
-impl<T: ToTokens> Decision for OrdDecision<T> {
-    fn gain_ratio(&self) -> f64 {
-        return self.gain_ratio;
-    }
-
-    fn max_branch_width(&self) -> usize {
-        return self.max_branch_width;
+impl<T: ToFormattedTokens> Decision for OrdDecision<T> {
+    fn to_decision_eval(&self) -> &DecisionEval {
+        return &self.decision_eval;
     }
 
     fn to_condition(&self, var: TokenStream) -> TokenStream {
-        let threshold_literal = &self.threshold;
-        return quote!(*#var < #threshold_literal);
+        let repr = self.threshold.to_formatted_tokens();
+        return quote!(#var < #repr);
     }
 }
 
-
-#[derive(Debug)]
 pub enum Tuple2Decision<A, B> {
     A(A),
     B(B),
@@ -84,45 +65,29 @@ where
     A: Decision,
     B: Decision,
 {
-    fn gain_ratio(&self) -> f64 {
+    fn to_decision_eval(&self) -> &DecisionEval {
         return match self {
-            Tuple2Decision::A(a) => a.gain_ratio(),
-            Tuple2Decision::B(b) => b.gain_ratio(),
-        };
-    }
-
-    fn max_branch_width(&self) -> usize {
-        return match self {
-            Tuple2Decision::A(a) => a.max_branch_width(),
-            Tuple2Decision::B(b) => b.max_branch_width(),
+            Tuple2Decision::A(a) => a.to_decision_eval(),
+            Tuple2Decision::B(b) => b.to_decision_eval(),
         };
     }
 
     fn to_condition(&self, var: TokenStream) -> TokenStream {
-        match self {
-            Tuple2Decision::A(a) => {
-                return a.to_condition(quote!(#var.0));
-            }
-            Tuple2Decision::B(b) => {
-                return b.to_condition(quote!(#var.1));
-            }
+        return match self {
+            Tuple2Decision::A(a) => a.to_condition(quote!(#var.0)),
+            Tuple2Decision::B(b) => b.to_condition(quote!(#var.1)),
         };
     }
 }
 
-#[derive(Debug)]
 pub struct ArrayDecision<T> {
     pub(crate) index: usize,
     pub(crate) inner_decision: T,
 }
 
 impl<T: Decision> Decision for ArrayDecision<T> {
-    fn gain_ratio(&self) -> f64 {
-        return self.inner_decision.gain_ratio();
-    }
-
-    fn max_branch_width(&self) -> usize {
-        return self.inner_decision.max_branch_width();
+    fn to_decision_eval(&self) -> &DecisionEval {
+        return self.inner_decision.to_decision_eval();
     }
 
     fn to_condition(&self, var: TokenStream) -> TokenStream {

@@ -1,14 +1,12 @@
-use proc_macro2::Ident;
-use quote::format_ident;
-use syn::Fields;
-
-use crate::field_type::FieldType;
+use proc_macro2::{Ident, Literal, TokenStream};
+use quote::{format_ident, ToTokens};
+use syn::token::Token;
+use syn::{Fields, Type};
 
 pub struct StructField {
-    pub i: usize,
-    pub struct_field: Ident,
+    pub struct_field: TokenStream,
     pub named_field: Ident,
-    pub field_type: FieldType,
+    pub field_type: Ident,
 }
 
 impl StructField {
@@ -18,17 +16,25 @@ impl StructField {
             .enumerate()
             .map(|(i, field)| {
                 let (struct_field, named_field) = if let Some(ident) = &field.ident {
-                    (ident.clone(), ident.clone())
+                    (ident.clone().to_token_stream(), format_ident!("F{ident}"))
                 } else {
-                    (format_ident!("{i}"), format_ident!("_{i}"))
+                    (Literal::usize_unsuffixed(i).to_token_stream(), format_ident!("_{i}"))
                 };
 
-                let ty = field.ty.clone();
+                let field_type = Self::type_to_ident(&field.ty);
 
-                let field_type = ty.into();
-
-                return StructField { i, struct_field, named_field, field_type };
+                return StructField { struct_field, named_field, field_type };
             })
             .collect();
+    }
+
+    fn type_to_ident(ty: &Type) -> Ident {
+        if let Type::Path(type_path) = ty {
+            if let Some(last_segment) = type_path.path.segments.last() {
+                return last_segment.ident.clone();
+            }
+        }
+
+        panic!("Cant handle given type");
     }
 }

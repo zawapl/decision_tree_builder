@@ -1,16 +1,25 @@
-use decision_impl::TreeBuilder;
-
-pub fn decide(t: &TestData) -> bool {
-    if t.a < 1usize {
-        if t.b < 1usize {
+pub fn decide(val: &TestData) -> bool {
+    return if val.b < 1 {
+        if val.a < 1 {
             false
         } else {
             true
         }
     } else {
-        true
-    }
+        if val.a < 1 {
+            true
+        } else {
+            false
+        }
+    };
 }
+
+struct T {
+    a: usize,
+    b: B,
+}
+
+struct B();
 
 pub struct TestData {
     a: usize,
@@ -22,4 +31,9 @@ pub struct TestData {
 fn main() {
     let test_data = TestData { a: 1, b: 1, c: true, d: true };
     println!("Decision: {}", decide(&test_data));
+}
+
+fn foo(t: &T) {
+    let a = t.a;
+    let b = t.b;
 }

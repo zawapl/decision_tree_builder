@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::hash::Hash;
+
 pub(crate) fn split_data<T, F>(data: &mut [T], predicate: F) -> usize
 where F: Fn(&T) -> bool {
     let mut a = 0;
@@ -25,12 +28,32 @@ pub(crate) fn h(count: usize, total: usize) -> f64 {
     return result;
 }
 
+pub(crate) fn entropy<T>(map: &HashMap<T, usize>) -> f64 {
+    let counts: Vec<usize> = map.values().into_iter().cloned().collect();
+    let total = counts.iter().sum();
+    let mut result = 0.0;
+    for i in counts {
+        result += h(i, total);
+    }
+    return result;
+}
+
+pub(crate) fn to_counts<D, R: Eq + Hash + Copy>(data: &[(D, R)]) -> HashMap<R, usize> {
+    let mut results = HashMap::new();
+
+    for (_, res) in data.iter() {
+        *results.entry(*res).or_insert(0) += 1;
+    }
+
+    return results;
+}
+
 #[cfg(test)]
 mod tests {
-    use super::split_data;
+    use super::*;
 
     #[test]
-    fn middle() {
+    fn test_middle() {
         let mut data = [9, 1, 4, 8, 3, 7, 3, 1];
         let split = split_data(&mut data, |v| v < &5);
         assert_eq!(split, 5);
@@ -38,7 +61,7 @@ mod tests {
     }
 
     #[test]
-    fn start() {
+    fn test_start() {
         let mut data = [9, 1, 4, 8, 3, 7, 3, 1];
         let split = split_data(&mut data, |v| v < &2);
         assert_eq!(split, 2);
@@ -46,10 +69,16 @@ mod tests {
     }
 
     #[test]
-    fn end() {
+    fn test_end() {
         let mut data = [9, 1, 4, 8, 3, 7, 3, 1];
         let split = split_data(&mut data, |v| v < &9);
         assert_eq!(split, 7);
         assert_eq!(data, [1, 1, 4, 8, 3, 7, 3, 9]);
+    }
+
+    #[test]
+    fn test_entropy() {
+        let map = HashMap::from([("A", 9), ("B", 5)]);
+        assert_eq!(entropy(&map), 0.9402859586706311);
     }
 }

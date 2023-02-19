@@ -1,7 +1,7 @@
 fn main() {
-    println!("{}", decide(&1));
+    println!("{}", decide(&3.0));
 }
 
-pub fn decide(val: &example::TestStructData) -> bool {
-    return if val.b.a { false } else { true };
+pub fn decide(val: &f32) -> &str {
+    return if *val < 2.0 { "false" } else { "true" };
 }

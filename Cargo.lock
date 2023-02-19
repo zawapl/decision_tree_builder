@@ -4,10 +4,9 @@ version = 3
 
 [[package]]
 name = "decision_tree_builder"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "decision_tree_builder_impl",
- "either",
  "prettyplease",
  "proc-macro2",
  "quote",
@@ -16,20 +15,13 @@ dependencies = [
 
 [[package]]
 name = "decision_tree_builder_impl"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
- "either",
  "prettyplease",
  "proc-macro2",
  "quote",
  "syn",
 ]
-
-[[package]]
-name = "either"
-version = "1.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7fcaabb2fef8c910e7f4c7ce9f67a1283a1715879a7c230ca9d6d1ae31f16d91"
 
 [[package]]
 name = "prettyplease"

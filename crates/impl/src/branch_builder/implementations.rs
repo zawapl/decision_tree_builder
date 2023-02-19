@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 
-use quote::ToTokens;
-
-use crate::branch_builder::num_macro;
-use crate::{eq_implementation, num_implementation, utils, ArrayDecision, BoolDecision, Decision, EqDecision, OrdDecision, Tuple2Decision};
+use crate as decision_tree_builder_impl;
+use crate::decision_eval::DecisionEval;
+use crate::{eq_implementation, ord_implementation, utils, ArrayDecision, BoolDecision, Decision, Tuple2Decision};
 
 ///
 pub trait BranchBuilder {
@@ -12,7 +11,7 @@ pub trait BranchBuilder {
     type Decision: Decision;
 
     ///
-    fn find_best_decision<R: ToTokens + Copy + Eq + Hash, F, D>(entropy: f64, data: &mut [(D, R)], extract: F) -> Self::Decision
+    fn find_best_decision<R: Copy + Eq + Hash, F, D>(entropy: f64, data: &mut [(D, R)], extract: F) -> Self::Decision
     where F: Fn(&D) -> &Self;
 
     ///
@@ -20,17 +19,32 @@ pub trait BranchBuilder {
     where F: Fn(&D) -> &Self;
 }
 
+type StaticStr = &'static str;
+eq_implementation!(String);
+eq_implementation!(StaticStr);
 
-// eq_implementation!(bool);
-num_implementation!(usize);
-num_implementation!(u32);
-num_implementation!(f32);
+ord_implementation!(u8);
+ord_implementation!(u16);
+ord_implementation!(u32);
+ord_implementation!(u64);
+ord_implementation!(u128);
+ord_implementation!(usize);
+
+ord_implementation!(i8);
+ord_implementation!(i16);
+ord_implementation!(i32);
+ord_implementation!(i64);
+ord_implementation!(i128);
+ord_implementation!(isize);
+
+ord_implementation!(f32);
+ord_implementation!(f64);
 
 /// Support for String
 impl BranchBuilder for bool {
     type Decision = BoolDecision;
 
-    fn find_best_decision<R: ToTokens + Copy + Eq + Hash, F, D>(entropy: f64, data: &mut [(D, R)], extract: F) -> Self::Decision
+    fn find_best_decision<R: Copy + Eq + Hash, F, D>(entropy: f64, data: &mut [(D, R)], extract: F) -> Self::Decision
     where F: Fn(&D) -> &Self {
         let total_count = data.len();
         let mut true_sub_branch = HashMap::new();
@@ -58,7 +72,7 @@ impl BranchBuilder for bool {
             }
             info += i * sum as f64 / total_count as f64;
             split.push(sum);
-            max_branch_width = max_branch_width.max(sub_results.len());
+            max_branch_width = max_branch_width.max(sum);
         }
 
         let mut split_info = 0.0;
@@ -72,7 +86,8 @@ impl BranchBuilder for bool {
             (entropy - info) / split_info
         };
 
-        return BoolDecision { gain_ratio, max_branch_width };
+        let decision_eval = DecisionEval { gain_ratio, max_branch_width };
+        return BoolDecision { decision_eval };
     }
 
     fn split_data<F, D, R>(data: &mut [(D, R)], extract: F, _decision: &Self::Decision) -> usize
@@ -80,75 +95,6 @@ impl BranchBuilder for bool {
         return utils::split_data(data, |(d, _)| *extract(d));
     }
 }
-
-
-// impl BranchBuilder for String {
-//     type Decision = EqDecision<String>;
-//
-//     fn find_best_decision<R: ToTokens + Copy + Eq + Hash, F, D>(entropy: f64, data: &mut [(D, R)], extract: F) -> Self::Decision
-//     where F: Fn(&D) -> &Self {
-//         let vals: Vec<&String> = data.iter().map(|(d, _)| extract(d)).copied().collect();
-//
-//         let mut best_gain_ratio = 0.0;
-//         let mut best_threshold = &vals[0];
-//         let mut best_branch_size = usize::MAX;
-//
-//         for threshold in &vals[0..] {
-//             let total_count = data.len();
-//             let mut true_sub_branch = HashMap::new();
-//             let mut false_sub_branch = HashMap::new();
-//
-//             for i in 0..data.len() {
-//                 let (entry, res) = &data[i];
-//                 let branch = extract(entry) < threshold;
-//                 if branch {
-//                     *true_sub_branch.entry(*res).or_insert(0) += 1;
-//                 } else {
-//                     *false_sub_branch.entry(*res).or_insert(0) += 1;
-//                 }
-//             }
-//
-//             let mut info = 0.0;
-//             let mut split = vec![];
-//             let mut max_branch_width = 0;
-//
-//             for sub_results in [true_sub_branch, false_sub_branch] {
-//                 let sum = sub_results.values().sum();
-//                 let mut i = 0.0;
-//                 for count in sub_results.values() {
-//                     i += utils::h(*count, sum);
-//                 }
-//                 info += i * sum as f64 / total_count as f64;
-//                 split.push(sum);
-//                 max_branch_width = max_branch_width.max(sub_results.len());
-//             }
-//
-//             let mut split_info = 0.0;
-//             for f in split {
-//                 split_info += utils::h(f, total_count);
-//             }
-//
-//             let gain_ratio = if split_info == 0.0 {
-//                 0.0
-//             } else {
-//                 (entropy - info) / split_info
-//             };
-//
-//             if (gain_ratio > best_gain_ratio) || (gain_ratio == best_gain_ratio && max_branch_width < best_branch_size) {
-//                 best_gain_ratio = gain_ratio;
-//                 best_threshold = threshold;
-//                 best_branch_size = max_branch_width;
-//             }
-//         }
-//
-//         return EqDecision { gain_ratio: best_gain_ratio, val: best_threshold, max_branch_width: best_branch_size };
-//     }
-//
-//     fn split_data<F, D, R>(data: &mut [(D, R)], extract: F, _decision: &Self::Decision) -> usize
-//     where F: Fn(&D) -> &Self {
-//         return utils::split_data(data, |(d, _)| *extract(d));
-//     }
-// }
 
 /// Support for tuples
 impl<A, B> BranchBuilder for (A, B)
@@ -158,16 +104,15 @@ where
 {
     type Decision = Tuple2Decision<A::Decision, B::Decision>;
 
-    fn find_best_decision<R: ToTokens + Copy + Eq + Hash, F, D>(entropy: f64, data: &mut [(D, R)], extract: F) -> Self::Decision
+    fn find_best_decision<R: Copy + Eq + Hash, F, D>(entropy: f64, data: &mut [(D, R)], extract: F) -> Self::Decision
     where F: Fn(&D) -> &Self {
-        let a = BranchBuilder::find_best_decision(entropy, data, |d| &extract(d).0);
-        let b = BranchBuilder::find_best_decision(entropy, data, |d| &extract(d).1);
-
-        return if a.gain_ratio() > b.gain_ratio() {
-            Tuple2Decision::A(a)
-        } else {
-            Tuple2Decision::B(b)
-        };
+        return [
+            Tuple2Decision::A(BranchBuilder::find_best_decision(entropy, data, |d| &extract(d).0)),
+            Tuple2Decision::B(BranchBuilder::find_best_decision(entropy, data, |d| &extract(d).1)),
+        ]
+        .into_iter()
+        .max_by(|a, b| a.to_decision_eval().cmp(b.to_decision_eval()))
+        .unwrap();
     }
 
     fn split_data<F, D, R>(data: &mut [(D, R)], extract: F, decision: &Self::Decision) -> usize
@@ -186,20 +131,12 @@ where T: BranchBuilder
 {
     type Decision = ArrayDecision<T::Decision>;
 
-    fn find_best_decision<R: ToTokens + Copy + Eq + Hash, F, D>(entropy: f64, data: &mut [(D, R)], extract: F) -> Self::Decision
+    fn find_best_decision<R: Copy + Eq + Hash, F, D>(entropy: f64, data: &mut [(D, R)], extract: F) -> Self::Decision
     where F: Fn(&D) -> &Self {
-        let mut best_decision = BranchBuilder::find_best_decision(entropy, data, |d| &extract(d)[0]);
-        let mut best_i = 0;
-        for i in 1..N {
-            let decision = BranchBuilder::find_best_decision(entropy, data, |d| &extract(d)[i]);
-            let gain_ratio = decision.gain_ratio();
-            let best_gain_ratio = best_decision.gain_ratio();
-            if (gain_ratio > best_gain_ratio) || (gain_ratio == best_gain_ratio && decision.max_branch_width() < best_decision.max_branch_width()) {
-                best_decision = decision;
-                best_i = i;
-            }
-        }
-        return ArrayDecision { index: best_i, inner_decision: best_decision };
+        return (0..N)
+            .map(|i| ArrayDecision { index: i, inner_decision: BranchBuilder::find_best_decision(entropy, data, |d| &extract(d)[i]) })
+            .max_by(|a, b| a.to_decision_eval().cmp(b.to_decision_eval()))
+            .unwrap();
     }
 
     fn split_data<F, D, R>(data: &mut [(D, R)], extract: F, decision: &Self::Decision) -> usize
@@ -216,47 +153,86 @@ mod tests {
 
     #[test]
     fn test_bool() {
-        let mut data = [(true, true), (false, false), (false, false), (false, false), (false, false)];
-        let decision = BranchBuilder::find_best_decision(1.0, &mut data[..], |v| v);
-        println!("{:?}", decision);
+        let mut data = [(true, true), (false, false)];
+        let decision = BranchBuilder::find_best_decision(utils::entropy(&utils::to_counts(&data)), &mut data[..], |v| v);
+        let condition = decision.to_condition(quote!(val));
+        let expected = quote!(val);
+        assert_eq!(condition.to_string(), expected.to_string());
+        assert_eq!(decision.to_decision_eval().max_branch_width, 1);
+        assert_eq!(decision.to_decision_eval().gain_ratio, 1.0);
     }
 
     #[test]
-    fn test_ref_bool() {
-        let mut data = [(&true, true), (&false, false), (&false, false), (&false, false), (&false, false)];
-        let decision = BranchBuilder::find_best_decision(1.0, &mut data[..], |v| *v);
-        println!("{:?}", decision);
-    }
-
-    #[test]
-    fn test_usize() {
-        let mut data = [(0usize, true), (1, true), (2, false), (3, false), (4, false)];
-        let decision = BranchBuilder::find_best_decision(1.0, &mut data[..], |v| v);
-        println!("{:?}", decision);
-        println!("{:?}", decision.to_condition(quote!(self)).to_string());
+    fn test_bool_ref() {
+        let mut data = [(&true, true), (&false, false), (&false, false)];
+        let decision = BranchBuilder::find_best_decision(utils::entropy(&utils::to_counts(&data)), &mut data[..], |v| *v);
+        let condition = decision.to_condition(quote!(val));
+        let expected = quote!(val);
+        assert_eq!(condition.to_string(), expected.to_string());
+        assert_eq!(decision.to_decision_eval().max_branch_width, 1);
+        assert_eq!(decision.to_decision_eval().gain_ratio, 1.0);
     }
 
     #[test]
     fn test_tuple() {
-        let mut data = [((0, 0), true), ((0, 1), false), ((1, 0), false), ((1, 1), false)];
-        let decision = BranchBuilder::find_best_decision(1.0, &mut data[..], |v| v);
-        println!("{:?}", decision);
-        println!("{:?}", decision.to_condition(quote!(self)).to_string());
+        let mut data = [((0, 0), true), ((0, 1), false), ((1, 0), false)];
+        let decision = BranchBuilder::find_best_decision(utils::entropy(&utils::to_counts(&data)), &mut data[..], |v| v);
+        let condition = decision.to_condition(quote!(val));
+        let expected = quote!(*val.1 < 1);
+        assert_eq!(condition.to_string(), expected.to_string());
+        assert_eq!(decision.to_decision_eval().max_branch_width, 2);
+        assert_eq!(decision.to_decision_eval().gain_ratio, 0.5);
     }
 
     #[test]
     fn test_recursive_tuple() {
         let mut data = [(((0, 0), (true, true)), true), (((0, 1), (false, false)), false), (((1, 0), (true, true)), false), (((1, 1), (false, false)), false)];
-        let decision = BranchBuilder::find_best_decision(1.0, &mut data[..], |v| v);
-        println!("{:?}", decision);
-        println!("{:?}", decision.to_condition(quote!(self)).to_string());
+        let original_entropy = utils::entropy(&utils::to_counts(&data));
+        let decision = BranchBuilder::find_best_decision(original_entropy, &mut data[..], |v| v);
+        let condition = decision.to_condition(quote!(val));
+        let expected = quote!(val.1 .1);
+        assert_eq!(condition.to_string(), expected.to_string());
+        assert_eq!(decision.to_decision_eval().max_branch_width, 2);
+
+        // let expected_gain_ratio = original_entropy -
+        assert_eq!(decision.to_decision_eval().gain_ratio, 0.5);
     }
 
     #[test]
     fn test_list() {
         let mut data = [([true, true], true), ([true, false], false), ([false, true], false), ([false, false], true)];
-        let decision = BranchBuilder::find_best_decision(1.0, &mut data[..], |v| v);
-        println!("{:?}", decision);
-        println!("{:?}", decision.to_condition(quote!(self)).to_string());
+        let decision = BranchBuilder::find_best_decision(utils::entropy(&utils::to_counts(&data)), &mut data[..], |v| v);
+        let condition = decision.to_condition(quote!(val));
+        let expected = quote!(val[1]);
+        assert_eq!(condition.to_string(), expected.to_string());
+        assert_eq!(decision.to_decision_eval().max_branch_width, 2);
+        assert_eq!(decision.to_decision_eval().gain_ratio, 0.0);
+    }
+
+    /// Using numbers form https://sefiks.com/2018/05/13/a-step-by-step-c4-5-decision-tree-example/
+    #[test]
+    fn test_example() {
+        let mut data = [
+            ("Weak", false),
+            ("Strong", false),
+            ("Weak", true),
+            ("Weak", true),
+            ("Weak", true),
+            ("Strong", false),
+            ("Strong", true),
+            ("Weak", false),
+            ("Weak", true),
+            ("Weak", true),
+            ("Strong", true),
+            ("Strong", true),
+            ("Weak", true),
+            ("Strong", false),
+        ];
+        let decision = BranchBuilder::find_best_decision(utils::entropy(&utils::to_counts(&data)), &mut data[..], |v| v);
+        let condition = decision.to_condition(quote!(val));
+        let expected = quote!(val == "Weak");
+        assert_eq!(condition.to_string(), expected.to_string());
+        assert_eq!(decision.to_decision_eval().max_branch_width, 2);
+        assert_eq!(decision.to_decision_eval().gain_ratio, 0.04884861551152088);
     }
 }
