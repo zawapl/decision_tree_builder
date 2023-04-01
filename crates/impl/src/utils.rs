@@ -53,6 +53,14 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_small() {
+        let mut data = [false, true];
+        let split = split_data(&mut data, |v| *v);
+        assert_eq!(split, 1);
+        assert_eq!(data, [true, false]);
+    }
+
+    #[test]
     fn test_middle() {
         let mut data = [9, 1, 4, 8, 3, 7, 3, 1];
         let split = split_data(&mut data, |v| v < &5);
@@ -75,6 +83,7 @@ mod tests {
         assert_eq!(split, 7);
         assert_eq!(data, [1, 1, 4, 8, 3, 7, 3, 9]);
     }
+
 
     #[test]
     fn test_entropy() {

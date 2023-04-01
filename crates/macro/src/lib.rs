@@ -28,9 +28,9 @@ pub fn my_macro_here_derive(input: TokenStream) -> TokenStream {
             std::env::var("OUT_DIR").unwrap_or(String::from("target"))
         );
         let output_filename = format!("{}/{}.rs", output_folder, name);
-        std::fs::create_dir_all(output_folder);
+        std::fs::create_dir_all(output_folder).unwrap();
         let mut file = std::fs::File::create(output_filename).unwrap();
-        file.write_all(formatted.as_bytes());
+        file.write_all(formatted.as_bytes()).unwrap();
     }
 
     return token_stream;

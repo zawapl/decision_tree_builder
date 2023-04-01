@@ -1,6 +1,5 @@
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, ToTokens};
-use syn::token::Token;
 use syn::{Fields, Type};
 
 pub struct StructField {
